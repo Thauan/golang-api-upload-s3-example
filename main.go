@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"golang-api-upload-s3-example.com/uploader/models"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -41,6 +43,7 @@ var DatabaseTable string
 var DatabaseUser string
 var DatabasePassword string
 var Port string
+var sslMode string
 
 func GetEnvWithKey(key string) string {
 	return os.Getenv(key)
@@ -54,11 +57,6 @@ func LoadEnv() {
 	}
 }
 
-func dbFromURI(uri string) (string, string) {
-	parts := strings.Split(uri, "://")
-	return parts[0], parts[1]
-}
-
 func init() {
 	LoadEnv()
 	awsAccessKeyID := GetEnvWithKey("AWS_ACCESS_KEY_ID")
@@ -69,21 +67,26 @@ func init() {
 	DatabaseTable := GetEnvWithKey("DATABASE_TABLE")
 	DatabaseUser := GetEnvWithKey("DATABASE_USER")
 	DatabasePassword := GetEnvWithKey("DATABASE_PASSWORD")
+	sslMode := GetEnvWithKey("SSL_MODE")
 
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		DatabaseHost, DatabasePort, DatabaseUser, DatabasePassword, DatabaseTable)
+		"password=%s dbname=%s sslmode=%s",
+		DatabaseHost, DatabasePort, DatabaseUser, DatabasePassword, DatabaseTable, sslMode)
 
 	fmt.Println(psqlInfo)
 
 	db, err := sql.Open("postgres", psqlInfo)
+
 	if err != nil {
 		panic(err)
 	}
+
 	defer db.Close()
 
 	err = db.Ping()
+
 	if err != nil {
+		fmt.Println("You not connect to your database")
 		panic(err)
 	}
 
@@ -125,6 +128,7 @@ func MultipartUploadObject(filename string) (result *s3.CompleteMultipartUploadO
 	var remaining = int(size)
 	var partNum = 1
 	var completedParts []*s3.CompletedPart
+
 	// Loop till remaining upload size is 0
 	for start = 0; remaining != 0; start += PART_SIZE {
 		if remaining < PART_SIZE {
@@ -186,8 +190,6 @@ func listObjects() (resp *s3.ListObjectsV2Output) {
 		panic(err)
 	}
 
-	// fmt.Printf("response %s", awsutil.StringValue(resp))
-
 	return resp
 }
 
@@ -202,28 +204,44 @@ func main() {
 	router.HandleFunc("/upload", UploadFiles).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":"+Port, router))
-
 }
 
 func GetFiles(w http.ResponseWriter, r *http.Request) {
-	// função de retorno dos files
+
 	files := listObjects()
-	// (files *s3.ListObjectsV2Output)
-
-	// reader := strings.NewReader(files)
-
-	// dec := json.NewDecoder(reader)
 
 	fmt.Printf("Resultado:%s", files)
-	// return json.NewJson(files, []byte)
+
+	data, _ := json.Marshal(files)
+
+	w.Write(data)
 
 }
 
 func UploadFiles(w http.ResponseWriter, r *http.Request) {
-	// função de retorno dos files
+
+	var File models.File
+
+	fmt.Println(File)
+
+	_, handler, err := r.FormFile("file")
+
+	if err != nil {
+		fmt.Println(handler)
+		data, _ := json.Marshal(fmt.Sprintf("failed to open file %q, %v", handler.Filename, err))
+		w.WriteHeader(http.StatusOK)
+		w.Write(data)
+		return
+	}
+
 	resp := MultipartUploadObject(FILE)
 
-	fmt.Println(resp)
+	fmt.Println(handler.Filename)
+
+	data, _ := json.Marshal(resp)
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
 }
 
 func uploadObject(filename string) (resp *s3.PutObjectOutput) {
@@ -241,10 +259,9 @@ func uploadObject(filename string) (resp *s3.PutObjectOutput) {
 
 	buffer := make([]byte, size)
 	_, _ = file.Read(buffer)
+
 	fileBytes := bytes.NewReader(buffer)
 	fileType := http.DetectContentType(buffer)
-
-	fmt.Println("Uploading:", filename)
 
 	params := &s3.PutObjectInput{
 		Body:        fileBytes,

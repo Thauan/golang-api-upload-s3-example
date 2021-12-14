@@ -15,19 +15,24 @@ type modelImpl struct {
 
 type File struct {
 	modelImpl
-	path string
-	name string
-	inS3 bool
+	Key      string //image_content
+	FileName string //test.jpg
+	Content  []byte //[]byte
+	path     string
+	bucket   string
 }
 
 func (m *modelImpl) SetId(id string) {
 	m.id = id
 }
 
-func NewFile(path, name string) *File {
+func NewFile(key string, filename string, content []byte, path string, bucket string, name string) *File {
 	u := &File{
-		path: path,
-		name: name,
+		Key:      key,
+		FileName: filename,
+		Content:  content,
+		path:     path,
+		bucket:   bucket,
 	}
 	u.SetId(name)
 	return u
@@ -49,7 +54,7 @@ func getAllFiles() ([]File, error) {
 	for rows.Next() {
 		var file File
 
-		err := rows.Scan(&file.path, &file.name, &file.inS3)
+		err := rows.Scan(&file.Key, &file.path, &file.FileName, &file.Content, &file.bucket)
 		if err != nil {
 			return nil, err
 		}
@@ -64,5 +69,5 @@ func getAllFiles() ([]File, error) {
 }
 
 func (u *File) GetId() string {
-	return u.name
+	return u.FileName
 }
