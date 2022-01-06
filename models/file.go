@@ -14,28 +14,45 @@ type modelImpl struct {
 }
 
 type File struct {
-	modelImpl
-	Key      string //image_content
-	FileName string //test.jpg
-	Content  []byte //[]byte
-	path     string
-	bucket   string
+	modelImpl   `json:"id"`
+	Key         string `json:"key"`
+	FileName    string `json:"fileName"`
+	Bucket      string `json:"bucket"`
+	ContentType string `json:"content-type"`
+	Size        int64  `json:"size"`
 }
 
 func (m *modelImpl) SetId(id string) {
 	m.id = id
 }
 
-func NewFile(key string, filename string, content []byte, path string, bucket string, name string) *File {
-	u := &File{
-		Key:      key,
-		FileName: filename,
-		Content:  content,
-		path:     path,
-		bucket:   bucket,
+func (*File) NewFile(key string, filename string, bucket string, contentType string, size int64) *File {
+
+	// var DB *sql.DB
+
+	f := &File{
+		Key:         key,
+		FileName:    filename,
+		Bucket:      bucket,
+		ContentType: contentType,
+		Size:        size,
 	}
-	u.SetId(name)
-	return u
+
+	// result, err := DB.Exec("INSERT INTO files (id, filename, content_type, file_size, bucket) VALUES ($1, $2, $3, $4. $5)", f.id, f.FileName, f.ContentType, f.Size, f.Bucket)
+
+	// if err != nil {
+	// 	fmt.Printf("could not insert row: %v", err)
+	// 	panic(err)
+	// }
+
+	f.SetId(filename)
+
+	// rowsAffected, err := result.RowsAffected()
+
+	// we can log how many rows were inserted
+	// fmt.Println("inserted", rowsAffected, "rows")
+
+	return f
 }
 
 // AllBooks returns a slice of all books in the books table.
@@ -44,6 +61,7 @@ func getAllFiles() ([]File, error) {
 	var DB *sql.DB
 	// Note that we are calling Query() on the global variable.
 	rows, err := DB.Query("SELECT * FROM files")
+
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +72,8 @@ func getAllFiles() ([]File, error) {
 	for rows.Next() {
 		var file File
 
-		err := rows.Scan(&file.Key, &file.path, &file.FileName, &file.Content, &file.bucket)
+		err := rows.Scan(&file.Key, &file.FileName, &file.Bucket)
+
 		if err != nil {
 			return nil, err
 		}
