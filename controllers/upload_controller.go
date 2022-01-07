@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -28,48 +29,53 @@ func UploadFiles(session *s3.S3) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var File models.File
 
-		file, handler, err := r.FormFile("file")
+		var files []models.File
 
-		if err != nil {
-			data, _ := json.Marshal(fmt.Sprintf("failed to upload file %v", err))
-			w.WriteHeader(http.StatusBadGateway)
-			w.Write(data)
-			return
+		file, _ := r.MultipartReader()
+
+		for {
+			part, err := file.NextPart()
+			if err == io.EOF {
+				break
+			}
+			fileBytes, err2 := ioutil.ReadAll(part)
+
+			if err2 != nil {
+				data, _ := json.Marshal(fmt.Sprintf("failed to upload file %v", err2))
+				w.WriteHeader(http.StatusBadGateway)
+				w.Write(data)
+				return
+			}
+
+			filename := "upload-*" + string(filepath.Ext(part.FileName()))
+
+			tempFile, err3 := ioutil.TempFile(os.TempDir(), filename)
+
+			if err3 != nil {
+				data, _ := json.Marshal(fmt.Sprintf("failed to upload file %v", err3))
+				w.WriteHeader(http.StatusBadGateway)
+				w.Write(data)
+				return
+			}
+
+			part.Close()
+
+			defer tempFile.Close()
+
+			defer handlers.RemoveTempFile(tempFile)
+
+			tempFile.Write(fileBytes)
+
+			fmt.Println("Done upload temp file")
+
+			resp, size := handlers.MultipartUploadObject(session, tempFile.Name())
+
+			new := File.NewFile(*resp.Key, *resp.Location, *resp.Bucket, part.Header.Get("Content-Type"), size)
+
+			files = append(files, *new)
 		}
 
-		filename := "upload-*" + string(filepath.Ext(handler.Filename))
-
-		tempFile, err2 := ioutil.TempFile(os.TempDir(), filename)
-
-		if err2 != nil {
-			data, _ := json.Marshal(fmt.Sprintf("failed to upload file %v", err2))
-			w.WriteHeader(http.StatusBadGateway)
-			w.Write(data)
-			return
-		}
-
-		defer tempFile.Close()
-
-		defer handlers.RemoveTempFile(tempFile)
-
-		fileBytes, err3 := ioutil.ReadAll(file)
-
-		if err3 != nil {
-			data, _ := json.Marshal(fmt.Sprintf("failed to upload file %v", err3))
-			w.WriteHeader(http.StatusBadGateway)
-			w.Write(data)
-			return
-		}
-
-		tempFile.Write(fileBytes)
-
-		fmt.Println("Done upload temp file")
-
-		resp, size := handlers.MultipartUploadObject(session, tempFile.Name())
-
-		db := File.NewFile(*resp.Key, *resp.Location, *resp.Bucket, handler.Header.Get("Content-Type"), size)
-
-		data, _ := json.Marshal(db)
+		data, _ := json.Marshal(files)
 
 		w.WriteHeader(http.StatusCreated)
 		w.Write(data)
