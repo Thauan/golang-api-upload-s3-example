@@ -2,6 +2,10 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
+
+	"github.com/Thauan/golang-api-upload-s3-example/handlers"
+	uuid "github.com/nu7hatch/gouuid"
 )
 
 type Model interface {
@@ -9,12 +13,8 @@ type Model interface {
 	SetId(id string)
 }
 
-type modelImpl struct {
-	id string
-}
-
 type File struct {
-	modelImpl   `json:"id"`
+	Id          string `json:"id"`
 	Key         string `json:"key"`
 	FileName    string `json:"fileName"`
 	Bucket      string `json:"bucket"`
@@ -22,15 +22,32 @@ type File struct {
 	Size        int64  `json:"size"`
 }
 
-func (m *modelImpl) SetId(id string) {
-	m.id = id
-}
-
 func (*File) NewFile(key string, filename string, bucket string, contentType string, size int64) *File {
 
-	// var DB *sql.DB
+	handlers.LoadEnv()
+	DatabasePort := handlers.GetEnvWithKey("DATABASE_PORT")
+	DatabaseHost := handlers.GetEnvWithKey("DATABASE_HOST")
+	DatabaseTable := handlers.GetEnvWithKey("DATABASE_TABLE")
+	DatabaseUser := handlers.GetEnvWithKey("DATABASE_USER")
+	DatabasePassword := handlers.GetEnvWithKey("DATABASE_PASSWORD")
+	sslMode := handlers.GetEnvWithKey("SSL_MODE")
+
+	u, err2 := uuid.NewV4()
+
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s "+
+		"password=%s dbname=%s sslmode=%s",
+		DatabaseHost, DatabasePort, DatabaseUser, DatabasePassword, DatabaseTable, sslMode)
+
+	fmt.Println(psqlInfo)
+
+	db, err := sql.Open("postgres", psqlInfo)
+
+	if err2 != nil {
+		fmt.Println(err2)
+	}
 
 	f := &File{
+		Id:          u.String(),
 		Key:         key,
 		FileName:    filename,
 		Bucket:      bucket,
@@ -38,24 +55,25 @@ func (*File) NewFile(key string, filename string, bucket string, contentType str
 		Size:        size,
 	}
 
-	// result, err := DB.Exec("INSERT INTO files (id, filename, content_type, file_size, bucket) VALUES ($1, $2, $3, $4. $5)", f.id, f.FileName, f.ContentType, f.Size, f.Bucket)
+	result, err := db.Prepare("INSERT INTO medias (id, path, filename, bucket, type, size) VALUES ($1, $2, $3, $4, $5, $6)")
 
-	// if err != nil {
-	// 	fmt.Printf("could not insert row: %v", err)
-	// 	panic(err)
-	// }
+	if err != nil {
+		fmt.Printf("could not insert row: %v", err)
+		panic(err)
+	}
 
-	f.SetId(filename)
+	_, err3 := result.Exec(f.Id, f.Key, f.FileName, f.Bucket, f.ContentType, f.Size)
 
-	// rowsAffected, err := result.RowsAffected()
+	if err3 != nil {
+		fmt.Printf("could not insert row: %v", err)
+		panic(err)
+	}
 
-	// we can log how many rows were inserted
-	// fmt.Println("inserted", rowsAffected, "rows")
+	defer db.Close()
 
 	return f
 }
 
-// AllBooks returns a slice of all books in the books table.
 func getAllFiles() ([]File, error) {
 	// Create an exported global variable to hold the database connection pool.
 	var DB *sql.DB
