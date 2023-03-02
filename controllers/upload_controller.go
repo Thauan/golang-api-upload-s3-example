@@ -119,7 +119,7 @@ func GenerateThumbVideo(session *s3.S3) http.HandlerFunc {
 			return
 		}
 
-		thumb, err4 := handlers.FirstFrame(tempFile.Name(), fileBytes)
+		thumb, err4 := handlers.TakeFrame(tempFile.Name(), fileBytes)
 
 		var bytesWrite bytes.Buffer
 

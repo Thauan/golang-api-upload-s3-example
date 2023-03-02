@@ -1,8 +1,8 @@
 version: "3.5"
 services:
-  database:
+  pg_database:
     image: postgres:12
-    container_name: "database"
+    container_name: "pg_database"
     environment:
       - POSTGRES_DB=golang-s3
       - POSTGRES_USER=postgres

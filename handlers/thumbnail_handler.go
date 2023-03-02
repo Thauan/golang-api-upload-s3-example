@@ -1,34 +1,38 @@
 package handlers
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"os/exec"
+	"io"
+	"os"
+
+	"github.com/disintegration/imaging"
+	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
-func FirstFrame(path string, data []byte) (*bufio.Reader, error) {
-	cmd := exec.Command(path,
-		"-i", "-", // read from stdin
-		"-vframes", fmt.Sprint(1), // frame
-		"-s", fmt.Sprintf("%dx%d", 640, 360), // size
-		"-q:v", fmt.Sprint(2), // quality
-		"-f", "singlejpeg", // jpeg binary
-		"-", // read from stdout
-	)
-	// stdin read
-	cmd.Stdin = bytes.NewBuffer(data)
-
-	var buffer bytes.Buffer
-	// stdout set buffer
-	cmd.Stdout = &buffer
-
-	if cmd.Run() != nil {
-		return nil, fmt.Errorf("Cannot run or found ffmpeg file by path: %s", path)
+func ReadFrameAsJpeg(inFileName string, frameNum int) io.Reader {
+	buf := bytes.NewBuffer(nil)
+	err := ffmpeg.Input(inFileName).
+		Filter("select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", frameNum)}).
+		Output("pipe:", ffmpeg.KwArgs{"vframes": 1, "format": "image2", "vcodec": "mjpeg"}).
+		WithOutput(buf, os.Stdout).
+		Run()
+	if err != nil {
+		panic(err)
 	}
+	return buf
+}
 
-	// reading of stdout
-	reader := bufio.NewReader(&buffer)
+func TakeFrame(path string, data []byte) (io.Reader, error) {
+	reader := ReadFrameAsJpeg("./sample_data/in1.mp4", 5)
+	img, err := imaging.Decode(reader)
+	if err != nil {
+		panic(err)
+	}
+	err = imaging.Save(img, "./sample_data/out1.jpeg")
+	if err != nil {
+		panic(err)
+	}
 
 	return reader, nil
 }

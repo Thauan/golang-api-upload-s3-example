@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/Thauan/golang-api-upload-s3-example/utils"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
@@ -17,16 +19,30 @@ const (
 	RETRIES   = 2
 )
 
-func GetObjectsStorage(session *s3.S3) (resp *s3.ListObjectsV2Output) {
+func GetObjectsStorage(session *s3.S3) (results []map[string]any) {
 	resp, err := session.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket: aws.String("golang-s3"),
+		Bucket: aws.String(GetEnvWithKey("AWS_S3_BUCKET")),
 	})
 
 	if err != nil {
 		panic(err)
 	}
 
-	return resp
+	for _, item := range resp.Contents {
+		results = append(results, map[string]any{
+			"name": *&item.Key,
+			"url": fmt.Sprintf(
+				"https://%s.s3.%s.amazonaws.com/%s", GetEnvWithKey("AWS_S3_BUCKET"), GetEnvWithKey("AWS_S3_REGION"),
+				*item.Key,
+			),
+			"last_modified": *&item.LastModified,
+			"size":          utils.ConvertByteSize(*item.Size),
+		})
+	}
+
+	fmt.Println("Found", len(resp.Contents), "items in bucket")
+
+	return results
 }
 
 func MultipartUploadObject(session *s3.S3, filename string) (result *s3.CompleteMultipartUploadOutput, completeSize int64) {
@@ -145,7 +161,6 @@ func uploadObject(session *s3.S3, filename string) (resp *s3.PutObjectOutput) {
 	size := fileInfo.Size()
 
 	if err != nil {
-		// fmt.Println(err)
 		return
 	}
 
