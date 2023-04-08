@@ -29,12 +29,22 @@ func GetObjectsStorage(session *s3.S3) (results []map[string]any) {
 	}
 
 	for _, item := range resp.Contents {
+
+		params := &s3.GetObjectInput{
+			Bucket: aws.String(GetEnvWithKey("AWS_S3_BUCKET")),
+			Key:    aws.String(*item.Key),
+		}
+
+		req, _ := session.GetObjectRequest(params)
+		url, err2 := req.Presign(15 * time.Minute)
+
+		if err2 != nil {
+			panic(err2)
+		}
+
 		results = append(results, map[string]any{
-			"name": *&item.Key,
-			"url": fmt.Sprintf(
-				"https://%s.s3.%s.amazonaws.com/%s", GetEnvWithKey("AWS_S3_BUCKET"), GetEnvWithKey("AWS_S3_REGION"),
-				*item.Key,
-			),
+			"name":          *&item.Key,
+			"url":           url,
 			"last_modified": *&item.LastModified,
 			"size":          utils.ConvertByteSize(*item.Size),
 		})
