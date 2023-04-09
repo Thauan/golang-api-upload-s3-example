@@ -108,8 +108,6 @@ func GenerateThumbVideo(session *s3.S3) http.HandlerFunc {
 
 		defer tempFile.Close()
 
-		// defer handlers.RemoveTempFile(tempFile)
-
 		fileBytes, err3 := ioutil.ReadAll(file)
 
 		if err3 != nil {
@@ -172,8 +170,6 @@ func ConvertVideoToMP4(session *s3.S3) http.HandlerFunc {
 		}
 
 		defer tempFile.Close()
-
-		// defer handlers.RemoveTempFile(tempFile)
 
 		fileBytes, err3 := ioutil.ReadAll(file)
 

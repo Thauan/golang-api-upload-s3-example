@@ -42,11 +42,15 @@ func GetObjectsStorage(session *s3.S3) (results []map[string]any) {
 			panic(err2)
 		}
 
+		dir, file := utils.GetFileWithDir(*item.Key)
+
 		results = append(results, map[string]any{
-			"name":          *&item.Key,
+			"name":          file,
+			"folder":        dir,
 			"url":           url,
 			"last_modified": *&item.LastModified,
 			"size":          utils.ConvertByteSize(*item.Size),
+			"extension":     utils.GetFileExtension(*item.Key),
 		})
 	}
 
@@ -95,13 +99,13 @@ func MultipartUploadObject(session *s3.S3, filename string) (result *s3.Complete
 				UploadId: createdResp.UploadId,
 			})
 			if err != nil {
-				// fmt.Println(err)
+				fmt.Println(err)
 				return
 			}
 		}
 
 		remaining -= currentSize
-		// fmt.Printf("Part %v complete, %v bytes remaining\n", partNum, remaining)
+		fmt.Printf("Part %v complete, %v bytes remaining\n", partNum, remaining)
 
 		completedParts = append(completedParts, completed)
 		partNum++
@@ -120,9 +124,9 @@ func MultipartUploadObject(session *s3.S3, filename string) (result *s3.Complete
 	completeSize = size
 
 	if err != nil {
-		// fmt.Println(err)
+		fmt.Println(err)
 	} else {
-		// fmt.Println(result.String())
+		fmt.Println(result.String())
 	}
 
 	return result, completeSize
@@ -142,7 +146,7 @@ func Upload(session *s3.S3, resp *s3.CreateMultipartUploadOutput, fileBytes []by
 		})
 		// Upload failed
 		if err != nil {
-			// fmt.Println(err)
+			fmt.Println(err)
 			// Max retries reached! Quitting
 			if try == RETRIES {
 				return nil, err
