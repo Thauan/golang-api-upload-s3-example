@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Thauan/golang-api-upload-s3-example/handlers"
 	"github.com/Thauan/golang-api-upload-s3-example/models"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
@@ -25,6 +27,12 @@ func GetFiles(session *s3.S3) http.HandlerFunc {
 	}
 }
 
+func GetExampleFunc(session *s3.S3) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("funcionou")
+	}
+}
+
 func UploadFiles(session *s3.S3) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var File models.File
@@ -32,6 +40,8 @@ func UploadFiles(session *s3.S3) http.HandlerFunc {
 		var files []models.File
 
 		file, _ := r.MultipartReader()
+
+		fmt.Println(file, "file")
 
 		for {
 			part, err := file.NextPart()
@@ -58,7 +68,9 @@ func UploadFiles(session *s3.S3) http.HandlerFunc {
 				return
 			}
 
-			part.Close()
+			if part != nil {
+				part.Close()
+			}
 
 			defer tempFile.Close()
 
@@ -69,6 +81,8 @@ func UploadFiles(session *s3.S3) http.HandlerFunc {
 			fmt.Println("Done upload temp file")
 
 			resp, size := handlers.MultipartUploadObject(session, tempFile.Name())
+
+			fmt.Println(resp)
 
 			new := File.NewFile(*resp.Key, *resp.Location, *resp.Bucket, part.Header.Get("Content-Type"), size)
 
@@ -136,7 +150,15 @@ func GenerateThumbVideo(session *s3.S3) http.HandlerFunc {
 
 		resp, size := handlers.MultipartUploadObject(session, tempFile.Name())
 
-		db := File.NewFile(*resp.Key, *resp.Location, *resp.Bucket, handler.Header.Get("Content-Type"), size)
+		params := &s3.GetObjectInput{
+			Bucket: aws.String(handlers.GetEnvWithKey("AWS_S3_BUCKET")),
+			Key:    aws.String(*resp.Key),
+		}
+
+		req, _ := session.GetObjectRequest(params)
+		url, err2 := req.Presign(15 * time.Minute)
+
+		db := File.NewFile(*resp.Key, url, *resp.Bucket, handler.Header.Get("Content-Type"), size)
 
 		data, _ := json.Marshal(db)
 
