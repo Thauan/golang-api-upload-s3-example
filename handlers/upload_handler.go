@@ -121,8 +121,6 @@ func MultipartUploadObject(session *s3.S3, filename string) (result *s3.Complete
 		},
 	})
 
-	fmt.Println(result, "result")
-
 	completeSize = size
 
 	if err != nil {
@@ -146,8 +144,6 @@ func Upload(session *s3.S3, resp *s3.CreateMultipartUploadOutput, fileBytes []by
 			UploadId:      resp.UploadId,
 			ContentLength: aws.Int64(int64(len(fileBytes))),
 		})
-
-		fmt.Println(uploadResp, "uploadResp")
 
 		// Upload failed
 		if err != nil {

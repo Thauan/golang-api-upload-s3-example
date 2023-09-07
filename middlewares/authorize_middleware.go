@@ -3,7 +3,6 @@ package middlewares
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/Thauan/golang-api-upload-s3-example/handlers"
@@ -33,8 +32,6 @@ func IsAuthorized(endpoint func(http.ResponseWriter, *http.Request)) http.Handle
 				w.Write(data)
 				return
 			}
-
-			fmt.Println(token.Valid)
 
 			if err != nil {
 				data, _ := json.Marshal(err.Error())

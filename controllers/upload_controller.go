@@ -13,6 +13,7 @@ import (
 
 	"github.com/Thauan/golang-api-upload-s3-example/handlers"
 	"github.com/Thauan/golang-api-upload-s3-example/models"
+	"github.com/Thauan/golang-api-upload-s3-example/utils"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
@@ -36,18 +37,20 @@ func GetExampleFunc(session *s3.S3) http.HandlerFunc {
 func UploadFiles(session *s3.S3) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var File models.File
+		var Error models.Error
 
 		var files []models.File
 
 		file, _ := r.MultipartReader()
 
-		fmt.Println(file, "file")
-
 		for {
 			part, err := file.NextPart()
+
 			if err == io.EOF {
+				fmt.Println(err, "err")
 				break
 			}
+
 			fileBytes, err2 := ioutil.ReadAll(part)
 
 			if err2 != nil {
@@ -78,11 +81,22 @@ func UploadFiles(session *s3.S3) http.HandlerFunc {
 
 			tempFile.Write(fileBytes)
 
-			fmt.Println("Done upload temp file")
+			allowedExtensions := []string{".txt", ".csv", ".jpg", ".png", ".jpeg"}
+
+			if !utils.ContainsFileExtension(allowedExtensions, utils.GetFileExtension(tempFile.Name())) {
+				extensionError := Error.Build(
+					false,
+					http.StatusBadRequest,
+					fmt.Sprintf("O arquivo '%s' não possui uma extensão permitida.", tempFile.Name()),
+				)
+
+				data, _ := json.Marshal(extensionError)
+				w.WriteHeader(http.StatusBadGateway)
+				w.Write(data)
+				return
+			}
 
 			resp, size := handlers.MultipartUploadObject(session, tempFile.Name())
-
-			fmt.Println(resp)
 
 			new := File.NewFile(*resp.Key, *resp.Location, *resp.Bucket, part.Header.Get("Content-Type"), size)
 
@@ -138,8 +152,6 @@ func GenerateThumbVideo(session *s3.S3) http.HandlerFunc {
 		bytesWrite.ReadFrom(thumb)
 
 		tempFile.Write([]byte(bytesWrite.String()))
-
-		fmt.Println("Done upload temp file")
 
 		if err4 != nil {
 			data, _ := json.Marshal(fmt.Sprintf("failed to generate thumb file %v", err4.Error()))
@@ -209,8 +221,6 @@ func ConvertVideoToMP4(session *s3.S3) http.HandlerFunc {
 		bytesWrite.ReadFrom(thumb)
 
 		tempFile.Write([]byte(bytesWrite.String()))
-
-		fmt.Println("Done upload temp file")
 
 		if err4 != nil {
 			data, _ := json.Marshal(fmt.Sprintf("failed to generate thumb file %v", err4.Error()))
