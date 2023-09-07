@@ -1,15 +1,17 @@
 package models
 
-type Error struct {
+type Response struct {
 	Success  bool   `json:"success"`
 	Status   int    `json:"status"`
+	Data     File   `json:"data, omitempty"`
 	Messages string `json:"messages"`
 }
 
-func (*Error) Build(success bool, status int, messages string) *Error {
+func (*Response) Build(success bool, status int, data File, messages string) *Response {
 
-	error := &Error{
+	error := &Response{
 		Success:  success,
+		Data:     data,
 		Status:   status,
 		Messages: messages,
 	}

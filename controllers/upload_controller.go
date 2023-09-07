@@ -37,7 +37,7 @@ func GetExampleFunc(session *s3.S3) http.HandlerFunc {
 func UploadFiles(session *s3.S3) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var File models.File
-		var Error models.Error
+		var Response models.Response
 
 		var files []models.File
 
@@ -83,11 +83,20 @@ func UploadFiles(session *s3.S3) http.HandlerFunc {
 
 			allowedExtensions := []string{".txt", ".csv", ".jpg", ".png", ".jpeg"}
 
+			file := models.File{}
+
+			// Converter a instância em uma string JSON
+			fileData, err := json.Marshal(file)
+			err2 = json.Unmarshal([]byte(string(fileData)), &file)
+
 			if !utils.ContainsFileExtension(allowedExtensions, utils.GetFileExtension(tempFile.Name())) {
-				extensionError := Error.Build(
+				_, fileName := utils.GetFileWithDir(tempFile.Name())
+
+				extensionError := Response.Build(
 					false,
 					http.StatusBadRequest,
-					fmt.Sprintf("O arquivo '%s' não possui uma extensão permitida.", tempFile.Name()),
+					file,
+					fmt.Sprintf("O arquivo '%s' não possui uma extensão permitida.", fileName),
 				)
 
 				data, _ := json.Marshal(extensionError)
