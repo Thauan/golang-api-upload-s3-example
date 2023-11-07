@@ -1,13 +1,16 @@
 version: "3.5"
 services:
-  pg_database:
+  database:
     image: postgres:12
-    container_name: "pg_database"
+    volumes:
+      - database-storage:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=golang-s3
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=root
     ports:
-      - "5433:5432"
+      - 5433:5432
     networks:
       - default
+volumes:
+    database-storage:

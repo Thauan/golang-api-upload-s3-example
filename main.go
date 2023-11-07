@@ -41,14 +41,14 @@ func init() {
 	MyRegion := handlers.GetEnvWithKey("AWS_S3_REGION")
 	DatabasePort := handlers.GetEnvWithKey("DATABASE_PORT")
 	DatabaseHost := handlers.GetEnvWithKey("DATABASE_HOST")
-	DatabaseTable := handlers.GetEnvWithKey("DATABASE_TABLE")
+	DatabaseName := handlers.GetEnvWithKey("DATABASE_NAME")
 	DatabaseUser := handlers.GetEnvWithKey("DATABASE_USER")
 	DatabasePassword := handlers.GetEnvWithKey("DATABASE_PASSWORD")
 	sslMode := handlers.GetEnvWithKey("SSL_MODE")
 
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s "+
 		"password=%s dbname=%s sslmode=%s",
-		DatabaseHost, DatabasePort, DatabaseUser, DatabasePassword, DatabaseTable, sslMode)
+		DatabaseHost, DatabasePort, DatabaseUser, DatabasePassword, DatabaseName, sslMode)
 
 	fmt.Println(psqlInfo)
 
