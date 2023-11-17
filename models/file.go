@@ -32,6 +32,10 @@ func (*File) NewFile(key string, url string, bucket string, contentType string, 
 	// Set table options
 	db.Set("gorm:table_options", "ENGINE=Distributed(cluster, default, hits)").AutoMigrate(&File{})
 
+	if err != nil {
+		fmt.Printf("could not connect: %v", err)
+	}
+
 	u, err2 := uuid.NewV4()
 
 	dir, f := utils.GetFileWithDir(key)
@@ -51,8 +55,7 @@ func (*File) NewFile(key string, url string, bucket string, contentType string, 
 	db.Create(&file)
 
 	if err2 != nil {
-		fmt.Printf("could not insert row: %v", err)
-		panic(err)
+		fmt.Printf("could not insert row: %v", err2)
 	}
 
 	return file

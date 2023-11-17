@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/Thauan/golang-api-upload-s3-example/handlers"
@@ -100,6 +101,7 @@ func GenerateThumbVideo(session *s3.S3) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var File models.File
 
+		frame := r.FormValue("frame")
 		file, handler, err := r.FormFile("file")
 
 		if err != nil {
@@ -109,9 +111,11 @@ func GenerateThumbVideo(session *s3.S3) http.HandlerFunc {
 			return
 		}
 
+		file.Close()
+
 		filename := "upload-*" + string(filepath.Ext(handler.Filename))
 
-		tempFile, err2 := ioutil.TempFile(os.TempDir(), filename)
+		tempFile, err2 := os.CreateTemp(os.TempDir(), filename)
 
 		if err2 != nil {
 			data, _ := json.Marshal(fmt.Sprintf("failed to upload file %v", err2))
@@ -122,22 +126,24 @@ func GenerateThumbVideo(session *s3.S3) http.HandlerFunc {
 
 		defer tempFile.Close()
 
-		fileBytes, err3 := ioutil.ReadAll(file)
+		// fileBytes, err3 := io.ReadAll(file)
 
-		if err3 != nil {
-			data, _ := json.Marshal(fmt.Sprintf("failed to upload file %v", err3))
-			w.WriteHeader(http.StatusBadGateway)
-			w.Write(data)
-			return
-		}
+		// if err3 != nil {
+		// 	data, _ := json.Marshal(fmt.Sprintf("failed to upload file %v", err3))
+		// 	w.WriteHeader(http.StatusBadGateway)
+		// 	w.Write(data)
+		// 	return
+		// }
 
-		thumb, err4 := handlers.TakeFrame(tempFile.Name(), fileBytes)
+		frameInt, _ := strconv.Atoi(frame)
+
+		thumb, err4 := handlers.TakeFrame(tempFile.Name(), frameInt)
 
 		var bytesWrite bytes.Buffer
 
 		bytesWrite.ReadFrom(thumb)
 
-		tempFile.Write([]byte(bytesWrite.String()))
+		tempFile.Write([]byte(bytesWrite.Bytes()))
 
 		fmt.Println("Done upload temp file")
 
@@ -148,6 +154,7 @@ func GenerateThumbVideo(session *s3.S3) http.HandlerFunc {
 			return
 		}
 
+		// resp, size := handlers.MultipartUploadObject(session, tempFile.Name())
 		resp, size := handlers.MultipartUploadObject(session, tempFile.Name())
 
 		params := &s3.GetObjectInput{
@@ -156,7 +163,14 @@ func GenerateThumbVideo(session *s3.S3) http.HandlerFunc {
 		}
 
 		req, _ := session.GetObjectRequest(params)
-		url, err2 := req.Presign(15 * time.Minute)
+		url, err5 := req.Presign(15 * time.Minute)
+
+		if err5 != nil {
+			data, _ := json.Marshal(fmt.Sprintf("error in presign: %v", err5.Error()))
+			w.WriteHeader(http.StatusBadGateway)
+			w.Write(data)
+			return
+		}
 
 		db := File.NewFile(*resp.Key, url, *resp.Bucket, handler.Header.Get("Content-Type"), size)
 

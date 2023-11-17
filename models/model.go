@@ -16,7 +16,7 @@ func dbConnection() (*gorm.DB, error) {
 	handlers.LoadEnv()
 	DatabasePort := handlers.GetEnvWithKey("DATABASE_PORT")
 	DatabaseHost := handlers.GetEnvWithKey("DATABASE_HOST")
-	DatabaseTable := handlers.GetEnvWithKey("DATABASE_TABLE")
+	DatabaseTable := handlers.GetEnvWithKey("DATABASE_NAME")
 	DatabaseUser := handlers.GetEnvWithKey("DATABASE_USER")
 	DatabasePassword := handlers.GetEnvWithKey("DATABASE_PASSWORD")
 	sslMode := handlers.GetEnvWithKey("SSL_MODE")

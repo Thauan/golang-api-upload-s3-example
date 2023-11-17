@@ -86,7 +86,7 @@ func main() {
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/files", controllers.GetFiles(s3session)).Methods("GET")
+	router.Handle("/files", middlewares.IsAuthorized(controllers.GetFiles(s3session))).Methods("GET")
 	router.Handle("/upload", middlewares.IsAuthorized(controllers.UploadFiles(s3session))).Methods("POST")
 	router.Handle("/generate/thumb", middlewares.IsAuthorized(controllers.GenerateThumbVideo(s3session))).Methods("POST")
 
